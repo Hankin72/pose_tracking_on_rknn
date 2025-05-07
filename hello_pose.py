@@ -6,9 +6,9 @@ CURR_PATH = "/home/orangepi/Documents/pose_tracking_on_rknn/yolo"
 
 # model = YOLO(CURR_PATH + "/models/yolov8n-pose.onnx")  # load a pretrained model (recommended for training)
 
-# model = YOLO("yolo11n.pt")
+# model = YOLO("yolo11n-pose.pt")
 
-# model.export(format='rknn', name='rk3588')
+# model.export(format='rknn', name='rk3588', int8=True)
 
 """_summary_
 
@@ -19,7 +19,7 @@ Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify'
 
 # rknn_model = YOLO("./yolo11n_rknn_model", task="detect")
 rknn_model = YOLO("./yolo11n-pose_rknn_model")
-# rknn_model = YOLO("./yolov8n-pose_rknn_model")
+# rknn_model = YOLO("./yolov8n-pose_rknn_model")yolov8n-pose.pt
 
 
 video_path = "./videos/ori.mp4"
