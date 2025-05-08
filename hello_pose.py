@@ -1,57 +1,72 @@
 import cv2
 from ultralytics import YOLO
 import time
-
-CURR_PATH = "/home/orangepi/Documents/pose_tracking_on_rknn/yolo"
-
-# model = YOLO(CURR_PATH + "/models/yolov8n-pose.onnx")  # load a pretrained model (recommended for training)
-
-# model = YOLO("yolo11n-pose.pt")
-
-# model.export(format='rknn', name='rk3588', int8=True)
-
-"""_summary_
-
-WARNING ⚠️ Unable to automatically guess model task,
-assuming 'task=detect'. 
-Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify','pose' or 'obb'.
-"""
+import numpy as np
 
 # rknn_model = YOLO("./yolo11n_rknn_model", task="detect")
 rknn_model = YOLO("./yolo11n-pose_rknn_model")
-# rknn_model = YOLO("./yolov8n-pose_rknn_model")yolov8n-pose.pt
-
+# rknn_model = YOLO("./yolo11n_rknn_model")
+# rknn_model = YOLO("./yolo11n-cls_rknn_model")
 
 video_path = "./videos/ori.mp4"
-# video_path = "./videos/faildown/fall_recognition_20210816_1210.mp4"
-
+video_path = "./videos/faildown/fall_recognition_20210816_1210.mp4"
 
 def run_usb_cam(camera_index=0):
-    # cap = cv2.VideoCapture(video_path) 
-    cap = cv2.VideoCapture(camera_index)
+    cap = cv2.VideoCapture(video_path) 
+    # cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         raise IOError("无法打开USB摄像头, 请检查video index")
     
+
+    # --- 获取帧尺寸和FPS 用于保存 ---
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps_in = cap.get(cv2.CAP_PROP_FPS)
+
+    # --- 初始化 VideoWriter ---
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 也可用 'XVID'
+    out = cv2.VideoWriter('output_inference_02.mp4', fourcc, fps_in, (width, height))
+    
+    
+    frame_index = 0
+    frame_interval = 3
+    last_result = None
     
     # --- 新增: FPS 计算变量 ---
     prev_time   = time.time()
     frame_count = 0
     fps         = 0.0
     font        = cv2.FONT_HERSHEY_SIMPLEX
-
+    
     while True:
         ret, frame = cap.read()
         if not ret:
             print("无法接收帧。正在退出...")
             break
 
-        frame = cv2.flip(frame, 1)
+        # frame = cv2.flip(frame, 1)
+        frame_index += 1
         
-        # results = model.predict(frame)
-        results = rknn_model.track(frame, tracker='bytetrack.yaml')
-        res = results[0]
         
-        annotated_frame = res.plot()
+        if frame_index % frame_interval == 0:
+            # results = rknn_model(frame)
+            # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', conf=0.4, persist=True)
+            
+            # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', persist=True)
+            
+            results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml')
+
+            last_result = results[0]
+            
+            # print("---------------->res:\n", res)
+            
+        if last_result:
+            annotated_frame = last_result.plot()
+        else:
+            annotated_frame = frame
+        
+        output_img = annotated_frame.copy().astype(np.uint8)
+        
         
         # --- 新增: 统计 FPS ---
         frame_count += 1
@@ -64,7 +79,7 @@ def run_usb_cam(camera_index=0):
 
         # --- 新增: 在左上角绘制 FPS ---
         cv2.putText(
-            annotated_frame,
+            output_img,
             f"FPS: {fps:.2f}",
             (10, 30),
             font,
@@ -73,13 +88,17 @@ def run_usb_cam(camera_index=0):
             2,
             cv2.LINE_AA,
         )
+        
+        # --- 写入视频文件 ---
+        out.write(output_img)
 
-        cv2.imshow('usb CAM detect', annotated_frame)
+        cv2.imshow('usb CAM detect', output_img)
 
         if cv2.waitKey(1) == ord('q'):
             break
 
     cap.release()
+    out.release()  # ✨释放视频写入资源
     cv2.destroyAllWindows()
 
 
