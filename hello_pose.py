@@ -1,19 +1,23 @@
+# hello_pose.py
 import cv2
 from ultralytics import YOLO
 import time
 import numpy as np
 
 # rknn_model = YOLO("./yolo11n_rknn_model", task="detect")
-rknn_model = YOLO("./yolo11n-pose_rknn_model")
+# rknn_model = YOLO("./yolo11n-pose.pt")
+rknn_model = YOLO("./yolo11n-pose_ncnn_model")
+
+# rknn_model = YOLO("./yolo11n-pose_rknn_model")
 # rknn_model = YOLO("./yolo11n_rknn_model")
 # rknn_model = YOLO("./yolo11n-cls_rknn_model")
 
 video_path = "./videos/ori.mp4"
-video_path = "./videos/faildown/fall_recognition_20210816_1210.mp4"
+# video_path = "./videos/faildown/fall_recognition_20210816_1210.mp4"
 
 def run_usb_cam(camera_index=0):
-    cap = cv2.VideoCapture(video_path) 
-    # cap = cv2.VideoCapture(camera_index)
+    # cap = cv2.VideoCapture(video_path) 
+    cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         raise IOError("无法打开USB摄像头, 请检查video index")
     
@@ -24,12 +28,12 @@ def run_usb_cam(camera_index=0):
     fps_in = cap.get(cv2.CAP_PROP_FPS)
 
     # --- 初始化 VideoWriter ---
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 也可用 'XVID'
-    out = cv2.VideoWriter('output_inference_02.mp4', fourcc, fps_in, (width, height))
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 也可用 'XVID'
+    # out = cv2.VideoWriter('output_inference_02.mp4', fourcc, fps_in, (width, height))
     
     
     frame_index = 0
-    frame_interval = 3
+    frame_interval = 5
     last_result = None
     
     # --- 新增: FPS 计算变量 ---
@@ -44,17 +48,20 @@ def run_usb_cam(camera_index=0):
             print("无法接收帧。正在退出...")
             break
 
-        # frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1)
         frame_index += 1
         
         
         if frame_index % frame_interval == 0:
-            # results = rknn_model(frame)
+            # results = rknn_model.predict(frame)
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', conf=0.4, persist=True)
             
+            # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml')
+               
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', persist=True)
             
-            results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml')
+            results = rknn_model.track(source=frame, tracker='./bytetrack.yaml', persist=True, conf=0.2, iou=0.5)
+
 
             last_result = results[0]
             
@@ -90,7 +97,7 @@ def run_usb_cam(camera_index=0):
         )
         
         # --- 写入视频文件 ---
-        out.write(output_img)
+        # out.write(output_img)
 
         cv2.imshow('usb CAM detect', output_img)
 
@@ -98,7 +105,7 @@ def run_usb_cam(camera_index=0):
             break
 
     cap.release()
-    out.release()  # ✨释放视频写入资源
+    # out.release()  # ✨释放视频写入资源
     cv2.destroyAllWindows()
 
 
