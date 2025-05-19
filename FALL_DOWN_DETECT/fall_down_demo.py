@@ -33,13 +33,13 @@ frame_height = int(video.get(cv.CAP_PROP_FRAME_HEIGHT))
 fps = int(video.get(cv.CAP_PROP_FPS))
 
 # 创建输出视频文件
-fourcc = cv.VideoWriter_fourcc(*'mp4v')
-out = cv.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
+# fourcc = cv.VideoWriter_fourcc(*'mp4v')
+# out = cv.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
 
 
 # Create RKNN object
 rknn = RKNN(verbose=True)
-rknn.config(target_platform="rk3566")
+rknn.config(target_platform="rk3588")
 # load onnx model
 ret = rknn.load_onnx(model=ONNX_PATH)
 if ret != 0:
@@ -131,8 +131,8 @@ with open(POSE_FILE_PATH, "r") as file:
 
                     cv.putText(frame, show_txt, (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
                     # 写入输出视频
-                    out.write(frame)
+                    # out.write(frame)
 
 # 释放视频对象
 video.release()
-out.release()
+# out.release()
