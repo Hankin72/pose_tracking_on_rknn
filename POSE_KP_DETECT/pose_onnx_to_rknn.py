@@ -40,7 +40,7 @@ def convert_onnx_2_rknn_person_pose():
     if ret != 0:
         print('Export RKNN model failed!')
         exit(ret)
-    print('Conversion successful! The RKNN model is saved as person_pose640x384.rknn.')
+    print('Conversion successful! The RKNN model is saved as person_pose640x384_3588.rknn.')
 
 
 if __name__ == "__main__":

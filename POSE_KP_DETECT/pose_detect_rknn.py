@@ -1,54 +1,12 @@
-import os
-import sys
-import urllib
-import urllib.request
-import time
-import numpy as np
-import argparse
-import cv2,math
-from math import ceil
-from PIL import Image
+# pose_detect_rknn.py
 
+import os
+import cv2
+import numpy as np
 from rknn.api import RKNN
 
-nmsThresh = 0.4
-objectThresh = 0.5
-pose_palette = np.array([[255, 128, 0], [255, 153, 51], [255, 178, 102], [230, 230, 0], [255, 153, 255],
-                         [153, 204, 255], [255, 102, 255], [255, 51, 255], [102, 178, 255], [51, 153, 255],
-                         [255, 153, 153], [255, 102, 102], [255, 51, 51], [153, 255, 153], [102, 255, 102],
-                         [51, 255, 51], [0, 255, 0], [0, 0, 255], [255, 0, 0], [255, 255, 255]],dtype=np.uint8)
 
-
-def load_rknn_model_onnx(model_path):
-    rknn = RKNN(verbose=True)
-    rknn.config(target_platform="rk3588")
-
-    # load onnx model
-    ret = rknn.load_onnx(model=model_path)
-    if ret != 0:
-        print('Load onnx model failed!')
-        exit(ret)
-    print('done')
-
-    # build onnx
-    print('--> Building model')
-    ret = rknn.build(do_quantization=False)
-    if ret != 0:
-        print('Build model failed!')
-        exit(ret)
-    print('done')
-
-    # Init runtime environment
-    print('--> Init runtime environment')
-    # ret = rknn.init_runtime(target=args.target, device_id=args.device_id)
-    ret = rknn.init_runtime()
-
-    if ret != 0:
-        print('Init runtime environment failed!')
-        exit(ret)
-    print('done')
-    return rknn
-
+# -------------------- 模型加载 --------------------
 def load_rknn_model_3588(model_path, target_platform="rk3588"):
     rknn = RKNN(verbose=True)
     print(f"--> loading RKNN mode: {model_path}")
@@ -62,9 +20,8 @@ def load_rknn_model_3588(model_path, target_platform="rk3588"):
     
     print("RKNN model loaded and initialized. ")
     return rknn
-    
 
-# 调整图像大小和两边灰条填充
+# -------------------- 图像预处理 -------------------- 调整图像大小和两边灰条填充
 def letterbox(im, new_shape=(384, 640), color=(114, 114, 114), scaleup=True):
     shape = im.shape[:2]
     if isinstance(new_shape, int):
@@ -91,7 +48,6 @@ def letterbox(im, new_shape=(384, 640), color=(114, 114, 114), scaleup=True):
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
     return im
 
-
 def pre_process(img):
     # 归一化 调整通道为（1，3，640，640）
     img = img / 255.
@@ -107,6 +63,7 @@ def preprocess_image(ori_image, target_size=(640, 384)):
     return data, img, ori_image
 
 
+# -------------------- 坐标变换工具 --------------------
 def xywh2xyxy(x):
     ''' 中心坐标、w、h ------>>> 左上点，右下点 '''
     y = np.copy(x)
@@ -116,6 +73,14 @@ def xywh2xyxy(x):
     y[:, 3] = x[:, 1] + x[:, 3] / 2  # bottom right y
     return y
 
+def xyxy2xywh(a):
+    ''' 左上点 右下点 ------>>> 左上点 宽 高 '''
+    b = np.copy(a)
+    # y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
+    # y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
+    b[:, 2] = a[:, 2] - a[:, 0]  # w
+    b[:, 3] = a[:, 3] - a[:, 1]  # h
+    return b
 
 # nms算法
 # dets: N * M, N是bbox的个数，M的前4位是对应的 左上点，右下点
@@ -150,7 +115,6 @@ def nms(dets, iou_thresh):
     for i in keep:
         output.append(dets[i].tolist())
     return np.array(output)
-
 
 def write_bbox_to_txt(bbox, file_path, image):
     H, W, channels = image.shape
@@ -188,18 +152,7 @@ def write_bbox_to_txt(bbox, file_path, image):
             row_str2 = ' '.join(map(str, row_float))
             row_str2 = '0 ' + row_str2
             f.write(f"{row_str2}\n")
-
-
-def xyxy2xywh(a):
-    ''' 左上点 右下点 ------>>> 左上点 宽 高 '''
-    b = np.copy(a)
-    # y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
-    # y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
-    b[:, 2] = a[:, 2] - a[:, 0]  # w
-    b[:, 3] = a[:, 3] - a[:, 1]  # h
-    return b
-
-
+            
 def scale_boxes(img1_shape, boxes, img0_shape):
     '''   将预测的坐标信息转换回原图尺度
     :param img1_shape: 缩放后的图像尺度
@@ -220,7 +173,6 @@ def scale_boxes(img1_shape, boxes, img0_shape):
     clip_boxes(boxes, img0_shape)
     return boxes
 
-
 def clip_boxes(boxes, shape):
     # 进行一个边界截断，以免溢出
     # 并且将检测框的坐标（左上角x，左上角y，宽度，高度）--->>>（左上角x，左上角y，右下角x，右下角y）
@@ -232,8 +184,7 @@ def clip_boxes(boxes, shape):
     boxes[:, 1] = top_left_y
     boxes[:, 2] = bottom_right_x  #右下
     boxes[:, 3] = bottom_right_y
-
-
+    
 # 调色板
 palette = np.array([[255, 128, 0], [255, 153, 51], [255, 178, 102],
 					[230, 230, 0], [255, 153, 255], [153, 204, 255],
@@ -270,8 +221,7 @@ def plot_skeleton_kpts(im, kpts, steps=3):
         conf2 = kpts[(sk[1]-1)*steps+2]
         if conf1 >0.5 and conf2 >0.5:  # 对于肢体，相连的两个关键点置信度 必须同时大于 0.5
             cv2.line(im, pos1, pos2, (int(r), int(g), int(b)), thickness=2)
-
-
+            
 # 画出关键点
 def show_rect_image(bboxs, img, ori_image):
     # 坐标从左上点，右下点 到 左上点，宽，高.
@@ -300,86 +250,82 @@ def show_rect_image(bboxs, img, ori_image):
                         cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 0, 255), 1)
         # 画点 连线
         plot_skeleton_kpts(ori_image, kpts)
-        # cv2.namedWindow("keypoint", cv2.WINDOW_NORMAL)
-        # cv2.imshow("keypoint", ori_image)
-    # cv2.imwrite('imgs/res.jpg', ori_image)
-    # cv2.waitKey(2)
-    # cv2.destroyAllWindows()
     return ori_image  # 返回处理后图像
 
 
-if __name__ == '__main__':
-    # model_path = "POSE_KP_DETECT/person_pose640x384.onnx"
-    # rknn = load_rknn_model_onnx(model_path=model_path)
-    
-    rknn_model_path = "POSE_KP_DETECT/person_pose640x384_3588.rknn"
-    rknn = load_rknn_model_3588(model_path=rknn_model_path)
+class PoseResult:
+    def __init__(self, box, img, ori):
+        self.box = box
+        self.img = img
+        self.ori = ori
 
-    # video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
-    video_path = 'POSE_KP_DETECT/ori.mp4'
+    def plot(self):
+        return show_rect_image([self.box], self.img, self.ori)
+    
+# -------------------- 核心推理封装 --------------------
+class PoseRKNNModel:
+    def __init__(self, model_path):
+        self.rknn = load_rknn_model_3588(model_path)
+
+    def predict(self, frame, conf_thresh=0.4, iou_thresh=0.5):
+        
+        data, img_letterbox, ori_image = preprocess_image(frame)
+    
+        frame_resized = cv2.resize(frame, (640, 384))
+        
+        input_tensor = np.expand_dims(frame_resized / 255.0, axis=0).astype(np.float32)
+
+        pred = self.rknn.inference(inputs=[input_tensor])[0]
+        
+        pred = np.squeeze(pred, axis=0)
+        pred = np.transpose(pred, (1, 0))
+        pred = pred[pred[:, 4] > conf_thresh]
+
+        results = []
+        if len(pred) > 0:
+            bboxs = xywh2xyxy(pred)
+            bboxs = nms(bboxs, iou_thresh)
+            
+            for box in bboxs:
+                results.append(PoseResult(box=box, img=img_letterbox, ori=ori_image))
+        return results
+
+
+if __name__ == '__main__':
+    rknn_model_path = "POSE_KP_DETECT/person_pose640x384_3588.rknn"
+
+    video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
+    # video_path = 'POSE_KP_DETECT/ori.mp4'
+    
+    model = PoseRKNNModel(model_path=rknn_model_path)
     
     # cap = cv2.VideoCapture(video_path)
     cap = cv2.VideoCapture(0)
+    
     if not cap.isOpened():
         print("无法打开视频文件")
-    file_path = "POSE_KP_DETECT/bbox_values.txt"  # 你希望保存数据的文本文件路径
-    
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    # 获取视频属性
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    frame_count = 0
-    
-    # # 创建保存视频的对象
-    out_path = "POSE_KP_DETECT/output_keypoint_video.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 编码格式
-    out = cv2.VideoWriter(out_path, fourcc, fps, (frame_width, frame_height))
-
+        
     while cap.isOpened():
-        ret, image = cap.read()
+        ret, frame = cap.read()
         if not ret:
             break
         
-        image = cv2.flip(image, 1)
-        
+        frame = cv2.flip(frame, 1)
         frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        
         print(frame_count)
         
-        data, img, ori_image = preprocess_image(image)
-        image = cv2.resize(image, (640, 384))
-        data = pre_process(image)
-        pred = rknn.inference(inputs=[data.astype(np.float32)])
+        results = model.predict(frame)
+        
+        # print(results[0])
+        
+        annotated_frame = results[0].plot()
+        
+        cv2.imshow('usb CAM detect', annotated_frame)
 
-        # [1， 56, 5040]
-        pred = pred[0]
-        # pred 由 (1, 56, 5040) 转为 (56, 5040)
-        pred = np.squeeze(pred, axis=0)
-        # [5040,56]
-        pred = np.transpose(pred, (1, 0))
-        # 置信度阈值过滤
-        conf = 0.5
-        pred = pred[pred[:, 4] > conf]
-        print('------pred-----', pred)
-        if len(pred) == 0:
-            print("没有检测到任何关键点")
-            output_frame = ori_image
-        else:
-            # 中心宽高转左上点，右下点
-            bboxs = xywh2xyxy(pred)
-            # NMS处理
-            bboxs = nms(bboxs, iou_thresh=0.6)
-            # 将bbox和关键点写入txt
-            write_bbox_to_txt(bboxs, file_path, image)
-            output_frame = show_rect_image(bboxs, img, ori_image)
-        
-        cv2.imshow("xxxxx", output_frame)
-        
         if cv2.waitKey(1) == ord('q'):
             break
-        # out.write(output_frame)  # 写入视频帧
+
     cap.release()
-    # out.release()
+    # out.release()  # ✨释放视频写入资源
     cv2.destroyAllWindows()
-    print("视频保存完成:", out_path)
