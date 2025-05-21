@@ -211,7 +211,7 @@ def plot_skeleton_kpts(im, kpts, steps=3):
         x_coord, y_coord = kpts[steps * kid], kpts[steps * kid + 1]
         conf = kpts[steps * kid + 2]
         if conf > 0.5:   # 关键点的置信度必须大于 0.5
-            cv2.circle(im, (int(x_coord), int(y_coord)), 10, (int(r), int(g), int(b)), -1)
+            cv2.circle(im, (int(x_coord), int(y_coord)), 4, (int(r), int(g), int(b)), -1)
     # 画骨架
     for sk_id, sk in enumerate(skeleton):
         r, g, b = pose_limb_color[sk_id]
@@ -220,7 +220,7 @@ def plot_skeleton_kpts(im, kpts, steps=3):
         conf1 = kpts[(sk[0]-1)*steps+2]
         conf2 = kpts[(sk[1]-1)*steps+2]
         if conf1 >0.5 and conf2 >0.5:  # 对于肢体，相连的两个关键点置信度 必须同时大于 0.5
-            cv2.line(im, pos1, pos2, (int(r), int(g), int(b)), thickness=2)
+            cv2.line(im, pos1, pos2, (int(r), int(g), int(b)), thickness=1)
             
 # 画出关键点
 def show_rect_image(bboxs, img, ori_image):
@@ -238,7 +238,7 @@ def show_rect_image(bboxs, img, ori_image):
         det_bbox, det_scores, kpts = box[0:4], box[4], box[5:]
         # 画框
         cv2.rectangle(ori_image, (int(det_bbox[0]), int(det_bbox[1])), (int(det_bbox[2]), int(det_bbox[3])),
-                      (0, 0, 255), 2)
+                      (0, 0, 255), 1)
         # 人体检测置信度
         if int(det_bbox[1]) < 30:
             cv2.putText(ori_image, "conf:{:.2f}".format(det_scores),
@@ -268,6 +268,10 @@ class PoseRKNNModel:
         self.rknn = load_rknn_model_3588(model_path)
 
     def predict(self, frame, conf_thresh=0.4, iou_thresh=0.5):
+        if isinstance(frame,str):
+            frame = cv2.imread(frame)
+            if frame is None:
+                raise ValueError(f"Image file not found or invalid: {frame}")
         
         data, img_letterbox, ori_image = preprocess_image(frame)
     
