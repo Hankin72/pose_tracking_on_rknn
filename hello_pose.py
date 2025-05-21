@@ -6,18 +6,18 @@ import numpy as np
 
 # rknn_model = YOLO("./yolo11n_rknn_model", task="detect")
 # rknn_model = YOLO("./yolo11n-pose.pt")
-rknn_model = YOLO("./yolo11n-pose_ncnn_model")
+# rknn_model = YOLO("./yolo11n-pose_ncnn_model")
 
-# rknn_model = YOLO("./yolo11n-pose_rknn_model")
+rknn_model = YOLO("./yolo11n-pose_rknn_model")
 # rknn_model = YOLO("./yolo11n_rknn_model")
 # rknn_model = YOLO("./yolo11n-cls_rknn_model")
 
 video_path = "./videos/ori.mp4"
-# video_path = "./videos/faildown/fall_recognition_20210816_1210.mp4"
+# video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
 
 def run_usb_cam(camera_index=0):
-    # cap = cv2.VideoCapture(video_path) 
-    cap = cv2.VideoCapture(camera_index)
+    cap = cv2.VideoCapture(video_path) 
+    # cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         raise IOError("无法打开USB摄像头, 请检查video index")
     
@@ -53,14 +53,14 @@ def run_usb_cam(camera_index=0):
         
         
         if frame_index % frame_interval == 0:
-            # results = rknn_model.predict(frame)
+            results = rknn_model.predict(frame)
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', conf=0.4, persist=True)
             
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml')
                
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', persist=True)
             
-            results = rknn_model.track(source=frame, tracker='./bytetrack.yaml', persist=True, conf=0.2, iou=0.5)
+            # results = rknn_model.track(source=frame, tracker='./bytetrack.yaml', persist=True, conf=0.2, iou=0.5)
 
 
             last_result = results[0]

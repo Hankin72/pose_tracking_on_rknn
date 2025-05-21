@@ -211,7 +211,7 @@ def plot_skeleton_kpts(im, kpts, steps=3):
         x_coord, y_coord = kpts[steps * kid], kpts[steps * kid + 1]
         conf = kpts[steps * kid + 2]
         if conf > 0.5:   # 关键点的置信度必须大于 0.5
-            cv2.circle(im, (int(x_coord), int(y_coord)), 4, (int(r), int(g), int(b)), -1)
+            cv2.circle(im, (int(x_coord), int(y_coord)), 6, (int(r), int(g), int(b)), -1)
     # 画骨架
     for sk_id, sk in enumerate(skeleton):
         r, g, b = pose_limb_color[sk_id]
@@ -267,7 +267,7 @@ class PoseRKNNModel:
     def __init__(self, model_path):
         self.rknn = load_rknn_model_3588(model_path)
 
-    def predict(self, frame, conf_thresh=0.4, iou_thresh=0.5):
+    def predict(self, frame, conf_thresh=0.1, iou_thresh=0.4):
         if isinstance(frame,str):
             frame = cv2.imread(frame)
             if frame is None:
@@ -315,12 +315,9 @@ if __name__ == '__main__':
             break
         
         frame = cv2.flip(frame, 1)
-        frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
-        
-        print(frame_count)
-        
+
         results = model.predict(frame)
-        
+    
         # print(results[0])
         
         annotated_frame = results[0].plot()
