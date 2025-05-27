@@ -19,7 +19,7 @@ def run_usb_cam(camera_index=0):
         raise IOError("无法打开USB摄像头, 请检查video index")
     
 
-    # --- 获取帧尺寸和FPS 用于保存 ---
+    # --- 获取帧尺寸和FPS 用于保存 --- 
     width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps_in = cap.get(cv2.CAP_PROP_FPS)
@@ -69,7 +69,7 @@ def run_usb_cam(camera_index=0):
             last_result = results[0] if results else None
             
             # print("---------------->res:\n", res)
-            
+            # botsort_cus.yaml
         if last_result:
             annotated_frame = last_result.plot()
         else:
