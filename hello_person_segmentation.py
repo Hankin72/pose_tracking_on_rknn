@@ -1,15 +1,11 @@
-# hello_pose.py
 import cv2
 from ultralytics import YOLO
 import time
 import numpy as np
 
-# rknn_model = YOLO("./yolo11n_rknn_model", task="detect")
-# rknn_model = YOLO("./yolo11n-pose.pt")
-# rknn_model = YOLO("./yolo11n-pose_ncnn_model")
 
+# rknn_model = YOLO("./yolo11n-seg_rknn_model")
 rknn_model = YOLO("./yolo11n-pose_rknn_model")
-# rknn_model = YOLO("./yolo11n_rknn_model")
 # rknn_model = YOLO("./yolo11n-cls_rknn_model")
 
 video_path = "./videos/ori.mp4"
@@ -55,7 +51,8 @@ def run_usb_cam(camera_index=0):
         
         
         if frame_index % frame_interval == 0:
-            results = rknn_model.predict(frame)
+            results = rknn_model(frame)
+            # results = rknn_model.predict(frame)
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml', conf=0.4, persist=True)
             
             # results = rknn_model.track(source=frame, tracker='./botsort_cus.yaml')
