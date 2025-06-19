@@ -370,14 +370,18 @@ def is_kpts_reliable(kpts, threshold=0.1, min_valid_points=10):
 
 if __name__ == '__main__':
     # video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
-    video_path = 'videos/faildown/fall_recognition_20210816_1210.mp4'
-    # video_path = 'videos/faildown/fall_recognition_20210816_1210.mp4'
+    # video_path = 'POSE_KP_DETECT/ori.mp4'
+    video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
     
     model = PoseRKNNModel(model_path="POSE_KP_DETECT/person_pose640x384_3588.rknn")
     fall_detector = FallDetector("POSE_KP_DETECT/alg_st-attention_fall_down_3588.rknn")
     
     cap = cv2.VideoCapture(video_path)
     # cap = cv2.VideoCapture(0)
+    
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
     
     file_path = "POSE_KP_DETECT/bbox_values.txt"  # 你希望保存数据的文本文件路径
     if os.path.exists(file_path):
@@ -392,6 +396,11 @@ if __name__ == '__main__':
     
     frame_count = 0
     skip_every = 2
+    
+    
+    out_path = "POSE_KP_DETECT/output_keypoint_fall_down_04.mp4"
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 编码格式
+    out = cv2.VideoWriter(out_path, fourcc, fps, (frame_width, frame_height))
     
     while cap.isOpened():
         ret, frame = cap.read()
@@ -448,10 +457,10 @@ if __name__ == '__main__':
             annotated_frame = draw_pose(boxes, img_letterbox, annotated_frame)
 
         cv2.imshow('usb CAM detect', annotated_frame)
-
+        out.write(annotated_frame)
         if cv2.waitKey(1) == ord('q'):
             break
 
     cap.release()
-    # out.release()  # ✨释放视频写入资源
+    out.release()  # ✨释放视频写入资源
     cv2.destroyAllWindows()

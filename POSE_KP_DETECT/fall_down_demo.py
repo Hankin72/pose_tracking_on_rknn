@@ -24,21 +24,23 @@ def load_rknn_model_3588(model_path, target_platform="rk3588"):
     return rknn
 
 
-VIDEO_PATH = "FALL_DOWN_DETECT/ori.mp4"
+
+# video_path = 'videos/faildown/fall_recognition_20210816_354.mp4'
+video_path = 'videos/faildown/fall_recognition_20210816_1210.mp4'
 # VIDEO_PATH = "/home/10177178@zte.intra/Desktop/摔倒数据集/fall_recognition_20210816_354.mp4"
 # POSE_FILE_PATH = "/home/10177178@zte.intra/文档/多模态相关/4-任务/跌倒检测/用官方的onnx人形检测模型/人形检测/bbox_values.txt"
-POSE_FILE_PATH = "/home/orangepi/Documents/pose_tracking_on_rknn/POSE_KP_DETECT/bbox_values.txt"
+POSE_FILE_PATH = "POSE_KP_DETECT/bbox_values.txt"
 # POSE_FILE_PATH="/home/10177178@zte.intra/下载/image0.txt"     #关键点检测生成的labels
-ONNX_PATH = "FALL_DOWN_DETECT/alg_st-attention_model_fall_down24x17x3_240426.onnx"
-RKNN_PATH = "FALL_DOWN_DETECT/alg_st-attention_fall_down_3588.rknn"
-output_video_path="FALL_DOWN_DETECT/output.mp4"
+# ONNX_PATH = "FALL_DOWN_DETECT/alg_st-attention_model_fall_down24x17x3_240426.onnx"
+RKNN_PATH = "POSE_KP_DETECT/alg_st-attention_fall_down_3588.rknn"
+output_video_path="POSE_KP_DETECT/output-fail_down.mp4"
 
 
 skip_frames = 2
 infer_frames = 24
 
 # 检查视频是否成功打开
-video = cv.VideoCapture(VIDEO_PATH)
+video = cv.VideoCapture(video_path)
 if not video.isOpened():
     print("Error: Could not open video.")
     exit()
@@ -60,16 +62,16 @@ kpts_frames = []
 with open(POSE_FILE_PATH, "r") as file:
     for i, line in enumerate(file, start=1):
         data = line.strip()  # 去除首尾的空白字符（包括换行符）
-        print(f"第{i}行是{data}")
+        # print(f"第{i}行是{data}")
 
 #for i in range(len(pose_list)):
         ret, frame = video.read()
 
         if i % skip_frames == 0:
             data_line = data.strip()
-            print(f"data_line:{data_line}")
+            # print(f"data_line:{data_line}")
             box = data_line.split(' ')[1:5]
-            print(f"box:{box}")
+            # print(f"box:{box}")
             box = [float(box[i]) for i in range(len(box))]
             kpts = data_line.split(' ')[5:]
             kpts = [float(kpts[i]) for i in range(len(kpts))]
