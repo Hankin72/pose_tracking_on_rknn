@@ -49,8 +49,8 @@ class Yolov8PoseRKNN:
         
         assert self.rknn.load_rknn(model_path) == 0, f'Load {model_path} failed'
         
-        MASK = (RKNN.NPU_CORE_0 | RKNN.NPU_CORE_1 | RKNN.NPU_CORE_2)  # 即 0b111
-        # MASK = RKNN.NPU_CORE_0_1_2
+        # MASK = (RKNN.NPU_CORE_0 | RKNN.NPU_CORE_1 | RKNN.NPU_CORE_2)  # 即 0b111
+        MASK = RKNN.NPU_CORE_0_1_2
         assert self.rknn.init_runtime(
             target=target,
             device_id=device_id,
