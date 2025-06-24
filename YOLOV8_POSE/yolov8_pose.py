@@ -45,7 +45,10 @@ class Yolov8PoseRKNN:
         self.model_path = model_path
         self.rknn = RKNN(verbose=verbose)
         assert self.rknn.load_rknn(model_path) == 0, f'Load {model_path} failed'
-        assert self.rknn.init_runtime(target=target, device_id=device_id, core_mask=RKNN.NPU_CORE_0_1_2) == 0, 'Init runtime failed'
+        assert self.rknn.init_runtime(
+            target=target,
+            device_id=device_id,
+            core_mask=RKNN.NPU_CORE_0_1_2) == 0, 'Init runtime failed'
     
     def release(self):         # 用完记得释放
         self.rknn.release()
@@ -123,48 +126,92 @@ class Yolov8PoseRKNN:
         return e / np.sum(e, axis=axis, keepdims=True)
     
     
+    def _process_fast(self, feat, all_kpts, idx_off, feat_w, feat_h, stride, scale_w=1., scale_h=1.):
+        # feat: (1, 64+1, H*W) → (4,16,H,W)
+        xywh = feat[:, :64, :].reshape(4, 16, feat_h, feat_w)
+        prob = self._sigmoid(feat[:, 64:, :]).reshape(1, 1, feat_h, feat_w)
+
+        keep = prob[0, 0] > objectThresh
+        if not keep.any():
+            return []
+
+        # softmax + weighted-sum
+        bins = np.arange(16, dtype=np.float32).reshape(1, 16, 1, 1)
+        xywh = (self._softmax(xywh, 1) * bins).sum(1)      # (4, H, W)
+
+        grid_x, grid_y = np.meshgrid(np.arange(feat_w), np.arange(feat_h))
+
+        # ---------- 与原 C 版公式一致 ----------
+        xmin = ((grid_x + 0.5) - xywh[0])[keep]
+        ymin = ((grid_y + 0.5) - xywh[1])[keep]
+        xmax = ((grid_x + 0.5) + xywh[2])[keep]
+        ymax = ((grid_y + 0.5) + xywh[3])[keep]
+
+        scores = prob[0, 0][keep]
+        pts_idx = np.flatnonzero(keep) + idx_off
+        kpts = all_kpts[..., pts_idx]        # shape: (51, n_det)
+
+        boxes = []
+        for i, s in enumerate(scores):
+            boxes.append(
+                DetectBox(
+                    classId=0,
+                    score=float(s),
+                    xmin=xmin[i] * stride * scale_w,
+                    ymin=ymin[i] * stride * scale_h,
+                    xmax=xmax[i] * stride * scale_w,
+                    ymax=ymax[i] * stride * scale_h,
+                    keypoint=kpts[..., i],
+                )
+            )
+        return boxes
+    
+    
     def _process(self, feat, all_kpts, idx_offset, feat_w, feat_h, stride, scale_w=1., scale_h=1.):
         """将某一层特征图解析为 DetectBox 列表"""
         
         xywh = feat[:, :64, :]
         conf = self._sigmoid(feat[:, 64:, :])
         boxes = []
+        
+        c = 0
+        
         for h in range(feat_h):
             for w in range(feat_w):
-                for c in range(len(CLASSES)):
-                    score = conf[0, c, h*feat_w + w]
-                    
-                    if score < objectThresh:
-                        continue
-                    
-                    xywh_ = xywh[0, :, h*feat_w + w].reshape(1, 4, 16, 1)
-                    data = np.arange(16).reshape(1,1,16,1)
-                    xywh_ = self._softmax(xywh_, 2)
-                    xywh_ = np.multiply(data, xywh_)
-                    xywh_ = np.sum(xywh_, axis=2, keepdims=True).reshape(-1)
+                # for c in range(len(CLASSES)):
+                score = conf[0, c, h*feat_w + w]
+                
+                if score < objectThresh:
+                    continue
+                
+                xywh_ = xywh[0, :, h*feat_w + w].reshape(1, 4, 16, 1)
+                data = np.arange(16).reshape(1,1,16,1)
+                xywh_ = self._softmax(xywh_, 2)
+                xywh_ = np.multiply(data, xywh_)
+                xywh_ = np.sum(xywh_, axis=2, keepdims=True).reshape(-1)
 
-                    # 还原到特征图坐标
-                    xywh_temp=xywh_.copy()
-                    xywh_temp[0]=(w+0.5)-xywh_[0]
-                    xywh_temp[1]=(h+0.5)-xywh_[1]
-                    xywh_temp[2]=(w+0.5)+xywh_[2]
-                    xywh_temp[3]=(h+0.5)+xywh_[3]
+                # 还原到特征图坐标
+                xywh_temp=xywh_.copy()
+                xywh_temp[0]=(w+0.5)-xywh_[0]
+                xywh_temp[1]=(h+0.5)-xywh_[1]
+                xywh_temp[2]=(w+0.5)+xywh_[2]
+                xywh_temp[3]=(h+0.5)+xywh_[3]
 
-                    xywh_[0]=((xywh_temp[0]+xywh_temp[2])/2)
-                    xywh_[1]=((xywh_temp[1]+xywh_temp[3])/2)
-                    xywh_[2]=(xywh_temp[2]-xywh_temp[0])
-                    xywh_[3]=(xywh_temp[3]-xywh_temp[1])
-                    xywh_=xywh_*stride
-                    
+                xywh_[0]=((xywh_temp[0]+xywh_temp[2])/2)
+                xywh_[1]=((xywh_temp[1]+xywh_temp[3])/2)
+                xywh_[2]=(xywh_temp[2]-xywh_temp[0])
+                xywh_[3]=(xywh_temp[3]-xywh_temp[1])
+                xywh_=xywh_*stride
+                
 
-                    xmin=(xywh_[0] - xywh_[2] / 2) * scale_w
-                    ymin = (xywh_[1] - xywh_[3] / 2) * scale_h
-                    xmax = (xywh_[0] + xywh_[2] / 2) * scale_w
-                    ymax = (xywh_[1] + xywh_[3] / 2) * scale_h
-                    
-                    kpt=all_kpts[..., (h*feat_w) + w + idx_offset]
-                    kpt[..., 0:2] //= 1
-                    boxes.append(DetectBox(classId=c, score=score, xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax, keypoint=kpt)) 
+                xmin=(xywh_[0] - xywh_[2] / 2) * scale_w
+                ymin = (xywh_[1] - xywh_[3] / 2) * scale_h
+                xmax = (xywh_[0] + xywh_[2] / 2) * scale_w
+                ymax = (xywh_[1] + xywh_[3] / 2) * scale_h
+                
+                kpt=all_kpts[..., (h*feat_w) + w + idx_offset]
+                kpt[..., 0:2] //= 1
+                boxes.append(DetectBox(classId=c, score=score, xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax, keypoint=kpt)) 
                 
         return boxes
     
@@ -198,7 +245,8 @@ class Yolov8PoseRKNN:
                 index=0
             feature=x.reshape(1,65,-1)
             
-            outputs += self._process(feature, keypoints, index, x.shape[3], x.shape[2], stride)
+            # outputs += self._process(feature, keypoints, index, x.shape[3], x.shape[2], stride)
+            outputs += self._process_fast(feature, keypoints, index, x.shape[3], x.shape[2], stride)
             
         predboxes = self._nms(outputs)
         

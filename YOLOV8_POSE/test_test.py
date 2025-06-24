@@ -21,12 +21,19 @@ while True:
 
     frame = cv2.flip(frame, 1)
     
+    start_time = time.time()
+    
     boxes, drawed_image = pose_model.infer(frame, need_draw=True)
+    
+    inference_time = (time.time() - start_time) * 1000
+    
     
     cTime = time.time()
     fps = 1/(cTime - pTime)
     
     pTime =  cTime
+    
+    print(f"Found {len(boxes)} person, Inference time: {inference_time:.4f}ms, FPS: {fps:.2f}")
     
     cv2.putText(drawed_image, f'FPS: {int(fps)}', (40, 50 ), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 0, 0), 3)
 
