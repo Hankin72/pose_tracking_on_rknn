@@ -43,12 +43,18 @@ class Yolov8PoseRKNN:
                 verbose: bool = False):
         """加载 RKNN 模型并初始化运行时"""
         self.model_path = model_path
+        
+        # self.rknn = RKNN(verbose=verbose)
         self.rknn = RKNN(verbose=verbose)
+        
         assert self.rknn.load_rknn(model_path) == 0, f'Load {model_path} failed'
+        
+        MASK = (RKNN.NPU_CORE_0 | RKNN.NPU_CORE_1 | RKNN.NPU_CORE_2)  # 即 0b111
+        # MASK = RKNN.NPU_CORE_0_1_2
         assert self.rknn.init_runtime(
             target=target,
             device_id=device_id,
-            core_mask=RKNN.NPU_CORE_0_1_2) == 0, 'Init runtime failed'
+            core_mask=MASK) == 0, 'Init runtime failed'
     
     def release(self):         # 用完记得释放
         self.rknn.release()

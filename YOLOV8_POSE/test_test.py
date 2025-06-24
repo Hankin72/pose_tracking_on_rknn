@@ -10,6 +10,7 @@ pose_model = Yolov8PoseRKNN(model_path=model_path, target="rk3588", verbose=True
 
 cap = cv2.VideoCapture(0)
 
+
 if not cap.isOpened():
     raise IOError("无法打开USB摄像头, 请检查video index")
 
@@ -39,9 +40,7 @@ while True:
     #         [b2.xmin,b2.ymin,b2.xmax,b2.ymax], atol=1e-3)
     # print("两套实现坐标完全一致！")
 
-    
     inference_time = (time.time() - start_time) * 1000
-    
     
     cTime = time.time()
     fps = 1/(cTime - pTime)
@@ -49,6 +48,7 @@ while True:
     pTime =  cTime
     
     print(f"Found {len(boxes)} person, Inference time: {inference_time:.4f}ms, FPS: {fps:.2f}")
+    # print(f" Inference time: {inference_time:.4f}ms, FPS: {fps:.2f}")
     
     cv2.putText(drawed_image, f'FPS: {int(fps)}', (40, 50 ), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 0, 0), 3)
 
@@ -60,3 +60,4 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 pose_model.release()
+
