@@ -1,8 +1,12 @@
 from yolov8_pose import Yolov8PoseRKNN
 import cv2 
-import time 
+import time
+import numpy as np 
 
-pose_model = Yolov8PoseRKNN(model_path="./yolov8n-pose_int8.rknn", target="rk3588", verbose=True)
+model_path = "./yolov8n-pose_int8.rknn"
+model_path_hybrid = "./yolov8n-pose_hybrid_int8.rknn"
+
+pose_model = Yolov8PoseRKNN(model_path=model_path, target="rk3588", verbose=True)
 
 cap = cv2.VideoCapture(0)
 
@@ -24,6 +28,17 @@ while True:
     start_time = time.time()
     
     boxes, drawed_image = pose_model.infer(frame, need_draw=True)
+    
+    # boxes_old = pose_model.infer(frame, need_draw=False, use_fast=False)[0]
+    # boxes_new = det.infer(frame, need_draw=False, use_fast=True)[0]
+
+    # assert len(boxes_old)==len(boxes_new)
+    # for b1,b2 in zip(boxes_old, boxes_new):
+    #     assert np.allclose(
+    #         [b1.xmin,b1.ymin,b1.xmax,b1.ymax],
+    #         [b2.xmin,b2.ymin,b2.xmax,b2.ymax], atol=1e-3)
+    # print("两套实现坐标完全一致！")
+
     
     inference_time = (time.time() - start_time) * 1000
     

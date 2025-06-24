@@ -217,7 +217,7 @@ class Yolov8PoseRKNN:
     
 
     # ---------- 核心接口 ----------
-    def infer(self, img_bgr, need_draw=True):
+    def infer(self, img_bgr, need_draw=True, use_fast=True):
         """对单张 BGR 格式图像推理  
         返回 (boxes, vis_img)。若 need_draw=False，第二个返回值为 None
         """
@@ -246,7 +246,10 @@ class Yolov8PoseRKNN:
             feature=x.reshape(1,65,-1)
             
             # outputs += self._process(feature, keypoints, index, x.shape[3], x.shape[2], stride)
-            outputs += self._process_fast(feature, keypoints, index, x.shape[3], x.shape[2], stride)
+            if use_fast:
+                outputs += self._process_fast(feature, keypoints, index, x.shape[3], x.shape[2], stride)
+            else:
+                outputs += self._process(feature, keypoints, index, x.shape[3], x.shape[2], stride)
             
         predboxes = self._nms(outputs)
         

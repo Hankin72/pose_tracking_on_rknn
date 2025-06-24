@@ -2,7 +2,7 @@ import sys,os
 from rknn.api import RKNN
 
 DATASET_PATH = './datasets/COCO/coco_subset_20.txt'
-DEFAULT_RKNN_PATH = './yolov8n-pose_int8.rknn'
+DEFAULT_RKNN_PATH = './yolov8n-pose_hybrid_int8.rknn'
 DEFAULT_QUANT = True
 
 def parse_arg():
@@ -60,6 +60,10 @@ if __name__ == '__main__':
         ret = rknn.build(do_quantization=do_quant, dataset=DATASET_PATH, auto_hybrid_quant=True)
     else:
         if do_quant:
+            # int8
+            # ret = rknn.build(do_quantization=do_quant, dataset=DATASET_PATH)
+            
+            # hybrid_int8
             rknn.hybrid_quantization_step1(
                 dataset=DATASET_PATH,
                 proposal= False,
@@ -74,6 +78,7 @@ if __name__ == '__main__':
                 data_input= model_name+".data",             # 表示第一步生成的配置文件
                 model_quantization_cfg=model_name+".quantization.cfg"  # 表示第一步生成的量化配置文件
             )
+            
         else:
             ret = rknn.build(do_quantization=do_quant, dataset=DATASET_PATH)
     if ret != 0:
