@@ -92,6 +92,16 @@ class Yolov8PoseRKNN:
 
 
     @staticmethod
+    def _pad_640x480_to_640x640(img_bgr, bg=56):
+        """输入 640×480 BGR，顶底各 pad 80 → 640×640"""
+        out = np.full((640, 640, 3), bg, np.uint8)
+        out[80:560, :, :] = img_bgr
+        # 这里返回 ratio=1.0、offset_x=0、offset_y=80，方便后续坐标回映射
+        return out, 1.0, 0, 80
+
+
+
+    @staticmethod
     def _iou(a, b):
         xmin = max(a.xmin, b.xmin) 
         ymin = max(a.ymin, b.ymin)
@@ -229,7 +239,10 @@ class Yolov8PoseRKNN:
         """
         
         letterbox_img, aspect_ratio, offset_x, offset_y = self._letterbox_resize(img_bgr, (640,640), 56)  # letterbox缩放
-        infer_img = letterbox_img[..., ::-1]  # BGR->RGB
+        # infer_img = letterbox_img[..., ::-1]  # BGR->RGB
+
+        # letterbox_img, aspect_ratio, offset_x, offset_y = self._pad_640x480_to_640x640(img_bgr, 56)
+        infer_img = letterbox_img  # BGR->RGB
         
         # Inference
         # print('--> Running model')
@@ -312,7 +325,7 @@ if __name__ == '__main__':
     parser.add_argument('--model',  required=True)
     parser.add_argument('--image',  required=True)
     parser.add_argument('--save',   default='./result.jpg')
-    parser.add_argument('--target', default='rk3566')
+    parser.add_argument('--target', default='rk3588')
     parser.add_argument('--device', default=None)
     args = parser.parse_args()
 

@@ -8,7 +8,15 @@ model_path_hybrid = "./yolov8n-pose_hybrid_int8.rknn"
 
 pose_model = Yolov8PoseRKNN(model_path=model_path, target="rk3588", verbose=True)
 
-cap = cv2.VideoCapture(0)
+
+video_path = "/home/orangepi/Documents/pose_tracking_on_rknn/videos/ori.mp4"
+# cap = cv2.VideoCapture(filename=video_path)
+
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # MJPEG
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)   # 试 640 或 640×640
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # 很多 USB 摄像头没有 1:1 分辨率
+cap.set(cv2.CAP_PROP_FPS, 30)
 
 
 if not cap.isOpened():
@@ -23,7 +31,7 @@ while True:
     if not ret:
         print("无法接收帧。正在退出...")
         break
-
+    
     frame = cv2.flip(frame, 1)
     
     start_time = time.time()
